@@ -1,0 +1,1770 @@
+//  10627226 資訊二乙 吳宗諺
+//  10627241  資訊二乙 陳憲廷 
+#include<iostream>
+#include <fstream>
+#include <vector>
+#include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+#pragma warning( disable : 4996 )
+
+using namespace std;
+
+struct DataType
+{
+	int id;
+	char schoolName[80];
+	char majorName[80];
+	char dayType[30];
+	char level[30];
+	int numOfStudent;
+	char raw_data[150];
+	vector<struct DataType> dataArray; // same school store area
+};
+
+struct TreeDataType
+{
+	int id; 
+	char schoolName[80]; // Key
+	
+	int id2; 
+	char schoolName2[80]; // Key
+	
+	vector<struct DataType> tempArray; // wait to split, if size == 3
+	TreeDataType *parent;
+	
+	TreeDataType *leftChild;
+	TreeDataType *midChild;
+	TreeDataType *rightChild;
+	
+	TreeDataType *tempLeft;
+	TreeDataType *tempRight;
+
+};
+
+
+
+
+void charInitial(char tempdata[]) {
+
+
+	for (int i = 0; i < sizeof(tempdata); i++) {
+		tempdata[i] = '\0';
+	}
+
+}
+
+class Two3Tree{
+	
+public:
+	Two3Tree();
+	~Two3Tree();
+	void readFile (fstream &file);
+	void Insert(DataType data);
+	void clear();
+	void charInitial(char tempdata[]);
+	void Sort(TreeDataType *insertNode);
+	void Swap(int place, int place2, vector<struct DataType> &tempArray);
+	void Split(TreeDataType *treeNode);
+	TreeDataType * getRoot() ;
+	int getTreeHeight();
+	void printRoot() ;
+
+private:
+	TreeDataType * getInserPosition(DataType data) ;
+	bool isLeaf(TreeDataType *treeNode) ;
+	int Height(TreeDataType *node) ;
+	int maxH(int h1, int h2, int h3) ;
+	void delNode(TreeDataType *node) ;
+	
+	bool hasRoot ;
+	TreeDataType *root ;
+	
+};
+
+Two3Tree::Two3Tree(){
+	hasRoot = false;
+	
+}
+
+Two3Tree::~Two3Tree(){
+}
+
+void Two3Tree::printRoot(){
+	if(root->tempArray.size()> 0){
+		int arraySize = root->tempArray.size() ;
+		
+		int col = 1 ;
+		
+		for(int i = 0; i< arraySize; i++){
+			cout << col<< ". "<<"["<< root->tempArray[i].id << "]" << root->tempArray[i].schoolName << "\t"
+			<< root->tempArray[i].majorName << "\t" << root->tempArray[i].dayType 
+			<< "\t" << root->tempArray[i].level << "\t" << root->tempArray[i].numOfStudent << endl ;
+			
+			col++ ;
+			if( root->tempArray[i].dataArray.size() > 0 ){
+				int arraySize2 = root->tempArray[i].dataArray.size() ;
+				for(int j = 0; j< arraySize2; j++){
+					cout << col<< ". "<<"["<< root->tempArray[i].dataArray[j].id << "]" << root->tempArray[i].dataArray[j].schoolName << "\t"
+					<< root->tempArray[i].dataArray[j].majorName << "\t" << root->tempArray[i].dataArray[j].dayType 
+					<< "\t" << root->tempArray[i].dataArray[j].level << "\t" << root->tempArray[i].dataArray[j].numOfStudent << endl ;
+					
+					col++ ;
+				}
+			}
+		}
+	}
+}
+
+void Two3Tree::delNode(TreeDataType *node){
+	if( node != NULL ){
+		delNode( node->leftChild );
+		delNode( node->midChild );
+		delNode( node->rightChild );
+	}
+	
+	delete node ;
+}
+
+void Two3Tree::clear(){
+	delNode(root) ;
+	
+	hasRoot = false ;
+	root = NULL ;
+}
+
+int Two3Tree::getTreeHeight() {
+	return Height(root) ;
+}
+
+int Two3Tree::maxH(int h1, int h2, int h3){
+	if (h1 >= h2 &&h1 >= h3)
+		return h1;
+	else if( h2 >= h1 &&h2 >= h3 )
+		return h2;
+	else if( h3 >= h1 &&h3 >= h2 )
+		return h3;
+}
+
+int Two3Tree::Height(TreeDataType *node) {
+	if (node == NULL)
+		return 0;
+
+	return 1 + maxH(Height(node->leftChild), Height(node->midChild), Height(node->rightChild));
+}
+
+TreeDataType * Two3Tree::getRoot(){
+	return root ;
+}
+
+bool Two3Tree::isLeaf(TreeDataType *treeNode){
+	
+	if(treeNode->leftChild == NULL && treeNode->rightChild == NULL && treeNode->midChild == NULL 
+	&& treeNode->tempLeft == NULL && treeNode->tempRight == NULL){
+		return true ;
+	}
+	
+	return false ;
+}
+
+void Two3Tree::Split(TreeDataType *treeNode){
+
+	if( treeNode->tempArray.size() != 3 ){
+		cout << "Split error!" << endl ;
+		return ;
+	}
+	
+	if( treeNode == root ){
+		// treeNode is root case1 
+
+		treeNode->id = treeNode->tempArray[0].id ;
+		strcpy(treeNode->schoolName, treeNode->tempArray[0].schoolName); //renew key
+		
+		// new root
+		TreeDataType *newRoot = new TreeDataType ;
+		// initial
+		newRoot->leftChild = NULL ;
+		newRoot->midChild = NULL ;
+		newRoot->rightChild = NULL ;
+		newRoot->parent = NULL ;
+		newRoot->tempLeft = NULL ;
+		newRoot->tempRight = NULL ;
+		// assign data
+		newRoot->id = treeNode->tempArray[1].id ;
+		strcpy(newRoot->schoolName, treeNode->tempArray[1].schoolName); //renew key
+		DataType newRootData = treeNode->tempArray.at(1);
+		newRoot->tempArray.push_back(newRootData);
+		
+		//new right child node
+		TreeDataType *rightNode = new TreeDataType ;
+		// initial
+		rightNode->leftChild = NULL ;
+		rightNode->midChild = NULL ;
+		rightNode->rightChild = NULL ;
+		rightNode->parent = NULL ;
+		rightNode->tempLeft = NULL ;
+		rightNode->tempRight = NULL ;
+		// assign data
+		rightNode->id = treeNode->tempArray[2].id ;
+		strcpy(rightNode->schoolName, treeNode->tempArray[2].schoolName); //renew key
+		DataType rightNodeData = treeNode->tempArray.at(2);
+		rightNode->tempArray.push_back(rightNodeData);
+
+		
+		// node conect
+		
+		// if treeNode(root) has child
+		
+		// has right child
+		if( treeNode->rightChild != NULL || treeNode->tempRight != NULL || treeNode->midChild != NULL ){
+			// conect to rightNode (new node)
+			
+			// rightNode R child 
+			if (treeNode->rightChild != NULL) {
+				rightNode->rightChild= treeNode->rightChild ;
+				rightNode->rightChild->parent = rightNode;
+				treeNode->rightChild = NULL ;
+			}
+			
+			// rightNode L child 
+			if( treeNode->tempRight != NULL ){
+				rightNode->leftChild = treeNode->tempRight ;
+				rightNode->leftChild->parent = rightNode;
+				treeNode->tempRight = NULL ; // treeNode initial
+			}
+			else if(treeNode->midChild != NULL){
+				rightNode->leftChild = treeNode->midChild ;
+				rightNode->leftChild->parent = rightNode;
+				treeNode->midChild = NULL ; // treeNode initial
+			}
+			
+		}
+		
+		// has left child
+		// ***Reuse*** treeNode consider to new left child
+		if( treeNode->leftChild != NULL || treeNode->tempLeft != NULL|| treeNode->midChild != NULL){
+			
+			// R
+			if( treeNode->tempLeft != NULL ){
+				treeNode->rightChild = treeNode->tempLeft ;
+				treeNode->rightChild->parent = treeNode;
+				treeNode->tempLeft = NULL ; // treeNode initial
+			}
+			else if(treeNode->midChild != NULL){
+				treeNode->rightChild = treeNode->midChild ;
+				treeNode->rightChild->parent = treeNode;
+				treeNode->midChild = NULL ; // treeNode initial
+			}
+			
+		}
+		
+		// treeNode initial
+		treeNode->tempArray.pop_back();
+		treeNode->tempArray.pop_back(); // delete tempArray[1],[2]
+		
+		treeNode->parent = newRoot ;
+		rightNode->parent = newRoot ;
+		newRoot->leftChild = treeNode ;
+		newRoot->rightChild = rightNode;
+		newRoot->midChild = NULL ;
+		root = newRoot ; // renew tree's root
+		
+		if( treeNode->tempLeft != NULL || treeNode->tempRight != NULL || treeNode->midChild != NULL ){
+			cout<< "======Error!!!=========" << endl ;
+			system("pause");
+		}
+
+		
+		// root case end
+	}
+	else if(isLeaf(treeNode)){
+		// treeNode is Leaf, case2
+
+		if( treeNode->parent->leftChild == treeNode ){
+			// leaf is left
+			//cout << "leaf is left!" << endl ;
+			TreeDataType *rightNode = new TreeDataType ;
+			rightNode->leftChild = NULL ;
+			rightNode->midChild = NULL ;
+			rightNode->rightChild = NULL ;
+			rightNode->parent = NULL ;
+			rightNode->tempLeft = NULL ;
+			rightNode->tempRight = NULL ;
+			
+			treeNode->id = treeNode->tempArray[0].id ;
+			strcpy(treeNode->schoolName, treeNode->tempArray[0].schoolName); //renew key
+			
+			rightNode->id = treeNode->tempArray[2].id ;
+			strcpy(rightNode->schoolName, treeNode->tempArray[2].schoolName); //renew key
+			DataType rightNodeData = treeNode->tempArray.at(2);
+			rightNode->tempArray.push_back(rightNodeData);
+			
+			DataType parentNodeData = treeNode->tempArray.at(1);
+			treeNode->parent->tempArray.push_back(parentNodeData);
+			Sort(treeNode->parent);
+			
+			
+			// start node conect
+			// ***Reuse*** treeNode consider to new left child
+			
+			//conect to parent
+			// treeNode->parent->leftChild = treeNode  , keep original
+			if( treeNode->parent->midChild == NULL ){
+				treeNode->parent->midChild = rightNode ;
+			}
+			else{
+				treeNode->parent->tempLeft = rightNode ;	
+			}
+			
+			rightNode->parent = treeNode->parent ;
+			
+			treeNode->tempArray.pop_back();
+			treeNode->tempArray.pop_back(); // delete tempArray[1],[2]
+			
+			if( !isLeaf(treeNode) || !isLeaf(rightNode) ){
+				cout << "\nCase2 Error!!!!!!\n" << endl ;
+				system("pause");
+			}
+			
+		}
+		else if(treeNode->parent->midChild == treeNode){
+			// leaf is mid
+
+			// rightNode consider to new tempRight child
+			TreeDataType *rightNode = new TreeDataType ;
+			rightNode->leftChild = NULL ;
+			rightNode->midChild = NULL ;
+			rightNode->rightChild = NULL ;
+			rightNode->parent = NULL ;
+			rightNode->tempLeft = NULL ;
+			rightNode->tempRight = NULL ;
+			
+			treeNode->id = treeNode->tempArray[0].id ;
+			strcpy(treeNode->schoolName, treeNode->tempArray[0].schoolName); //renew key
+			
+			rightNode->id = treeNode->tempArray[2].id ;
+			strcpy(rightNode->schoolName, treeNode->tempArray[2].schoolName); //renew key
+			DataType rightNodeData = treeNode->tempArray.at(2);
+			rightNode->tempArray.push_back(rightNodeData);
+			
+			DataType parentNodeData = treeNode->tempArray.at(1);
+			treeNode->parent->tempArray.push_back(parentNodeData);
+			Sort(treeNode->parent);
+			
+			
+			// start node conect
+			// ***Reuse*** treeNode consider to new tempLeft child
+			//conect to parent
+			
+			
+			
+			//treeNode->parent->tempLeft = treeNode , keep
+			if( treeNode->parent->tempRight != NULL  ){
+				cout << "\nNEED Error!!!!!!\n" << endl ;
+				system("pause");
+			}
+			treeNode->parent->tempRight = rightNode ;
+			rightNode->parent = treeNode->parent ;
+			
+			treeNode->tempArray.pop_back();
+			treeNode->tempArray.pop_back(); // delete tempArray[1],[2]
+			
+			if( !isLeaf(treeNode) || !isLeaf(rightNode) ){
+				cout << "\nCase2 Error!!!!!!\n" << endl ;
+				system("pause");
+			}
+			
+		}
+		else if(treeNode->parent->rightChild == treeNode){
+			// leaf is right
+
+			TreeDataType *leftNode = new TreeDataType ;
+			leftNode->leftChild = NULL ;
+			leftNode->midChild = NULL ;
+			leftNode->rightChild = NULL ;
+			leftNode->parent = NULL ;
+			leftNode->tempLeft = NULL ;
+			leftNode->tempRight = NULL ;
+			
+			treeNode->id = treeNode->tempArray[2].id ;
+			strcpy(treeNode->schoolName, treeNode->tempArray[2].schoolName); //renew key
+			DataType rightNodeData = treeNode->tempArray.at(2);
+			
+			leftNode->id = treeNode->tempArray[0].id ;
+			strcpy(leftNode->schoolName, treeNode->tempArray[0].schoolName); //renew key
+			DataType leftNodeData = treeNode->tempArray.at(0);
+			leftNode->tempArray.push_back(leftNodeData);
+			
+			DataType parentNodeData = treeNode->tempArray.at(1);
+			treeNode->parent->tempArray.push_back(parentNodeData);
+			Sort(treeNode->parent);
+			
+			// start node conect
+			
+			// ***Reuse*** treeNode consider to new right child
+			//conect to parent
+			// treeNode->parent->rightChild = treeNode  , keep original
+			if( treeNode->parent->midChild == NULL ){
+				treeNode->parent->midChild = leftNode ;
+			}
+			else{
+				treeNode->parent->tempRight = leftNode ;
+			}
+			
+			leftNode->parent = treeNode->parent ;
+			
+			treeNode->tempArray.clear();
+
+			treeNode->tempArray.push_back(rightNodeData) ;
+			
+			
+			if( !isLeaf(treeNode) || !isLeaf(leftNode) ){
+				cout << "\nCase2 Error!!!!!!\n" << endl ;
+				system("pause");
+			}
+		}
+		else{
+			cout << "\nCase2 parent Error!!!!!!\n" << endl ;
+			system("pause");
+		}
+		
+		
+		
+		
+		
+		
+		// recursion
+		if( treeNode->parent->tempArray.size() == 3 ){
+			Split(treeNode->parent);
+		}
+		
+		
+		// case2 End
+
+		
+	}
+	else{
+		// treeNode is internal node, case3
+
+		if( treeNode->parent->leftChild == treeNode ){
+			// internal node is left
+			TreeDataType *rightNode = new TreeDataType ;
+			rightNode->leftChild = NULL ;
+			rightNode->midChild = NULL ;
+			rightNode->rightChild = NULL ;
+			rightNode->parent = NULL ;
+			rightNode->tempLeft = NULL ;
+			rightNode->tempRight = NULL ;
+			
+			treeNode->id = treeNode->tempArray[0].id ;
+			strcpy(treeNode->schoolName, treeNode->tempArray[0].schoolName); //renew key
+			
+			rightNode->id = treeNode->tempArray[2].id ;
+			strcpy(rightNode->schoolName, treeNode->tempArray[2].schoolName); //renew key
+			DataType rightNodeData = treeNode->tempArray.at(2);
+			rightNode->tempArray.push_back(rightNodeData);
+			
+			DataType parentNodeData = treeNode->tempArray.at(1);
+			treeNode->parent->tempArray.push_back(parentNodeData);
+			Sort(treeNode->parent);
+			
+			
+			// ***Start node conect***
+			
+			if( treeNode->parent->midChild == NULL ){
+				treeNode->parent->midChild = rightNode ;
+			}
+			else{
+				treeNode->parent->tempLeft = rightNode ;
+			}
+			
+			rightNode->parent = treeNode->parent ;	
+			// if treeNode has child
+		
+			//  has right child
+			if( treeNode->rightChild != NULL || treeNode->tempRight != NULL|| treeNode->midChild != NULL ){
+				// conect to rightNode (new node)
+				//R
+				rightNode->rightChild = treeNode->rightChild ;
+				rightNode->rightChild->parent = rightNode;
+				treeNode->rightChild = NULL ;
+				//L
+				if( treeNode->tempRight != NULL ){
+					rightNode->leftChild = treeNode->tempRight ;
+					rightNode->leftChild->parent = rightNode;
+					treeNode->tempRight = NULL ; // treeNode initial
+				}
+				else{
+					rightNode->leftChild = treeNode->midChild ;
+					rightNode->leftChild->parent = rightNode;
+					treeNode->midChild = NULL ; // treeNode initial
+				}
+			
+			}
+		
+			// has left child
+			// ***Reuse*** treeNode consider to new left child
+			if( treeNode->leftChild != NULL || treeNode->tempLeft != NULL || treeNode->midChild != NULL){
+				// treeNode->leftChild = treeNode->leftChild  , keep original
+				//R
+				if( treeNode->tempLeft != NULL ){
+					treeNode->rightChild = treeNode->tempLeft ;
+					treeNode->rightChild->parent = treeNode ;
+					// treeNode initial
+					treeNode->tempLeft = NULL ;
+				}
+				else{
+					treeNode->rightChild = treeNode->midChild ;
+					treeNode->rightChild->parent = treeNode ;
+					// treeNode initial
+					treeNode->midChild = NULL ;
+				}
+			
+			}
+			
+			
+			
+			treeNode->tempArray.pop_back();
+			treeNode->tempArray.pop_back(); // delete tempArray[1],[2]
+			
+			// End internal node is left
+			
+		}
+		else if(treeNode->parent->midChild == treeNode){
+			// internal node is mid
+			
+			// rightNode consider to new tempRight child
+			TreeDataType *rightNode = new TreeDataType ;
+			rightNode->leftChild = NULL ;
+			rightNode->midChild = NULL ;
+			rightNode->rightChild = NULL ;
+			rightNode->parent = NULL ;
+			rightNode->tempLeft = NULL ;
+			rightNode->tempRight = NULL ;
+			
+			treeNode->id = treeNode->tempArray[0].id ;
+			strcpy(treeNode->schoolName, treeNode->tempArray[0].schoolName); //renew key
+			
+			rightNode->id = treeNode->tempArray[2].id ;
+			strcpy(rightNode->schoolName, treeNode->tempArray[2].schoolName); //renew key
+			DataType rightNodeData = treeNode->tempArray.at(2);
+			rightNode->tempArray.push_back(rightNodeData);
+			
+			DataType parentNodeData = treeNode->tempArray.at(1);
+			treeNode->parent->tempArray.push_back(parentNodeData);
+			Sort(treeNode->parent);
+			
+			
+			
+			// ***Start node conect***
+			// conect to parent
+			
+			
+			treeNode->parent->tempRight = rightNode ;		
+			
+			rightNode->parent = treeNode->parent ;
+			
+			// if treeNode has child
+		
+			//  has right child
+			if( treeNode->rightChild != NULL || treeNode->tempRight != NULL || treeNode->midChild != NULL ){
+				// conect to rightNode (new node)
+				//R
+				rightNode->rightChild = treeNode->rightChild ;
+				rightNode->rightChild->parent = rightNode;
+				treeNode->rightChild = NULL ;
+				//L
+				if( treeNode->tempRight != NULL ){
+					rightNode->leftChild = treeNode->tempRight ;
+					rightNode->leftChild->parent = rightNode ;
+					treeNode->tempRight = NULL ; // treeNode initial
+				}
+				else{
+					rightNode->leftChild = treeNode->midChild ;
+					rightNode->leftChild->parent = rightNode ;
+					treeNode->midChild = NULL ; // treeNode initial
+				}
+			
+			}
+		
+			// has left child
+			// ***Reuse*** treeNode consider to new left child
+			if( treeNode->leftChild != NULL || treeNode->tempLeft != NULL || treeNode->midChild != NULL){
+				// treeNode->leftChild = treeNode->leftChild  , keep original
+				if( treeNode->tempLeft != NULL ){
+					treeNode->rightChild = treeNode->tempLeft ;
+					treeNode->rightChild->parent = treeNode ;
+					// treeNode initial
+					treeNode->tempLeft = NULL ;
+				}
+				else{
+					treeNode->rightChild = treeNode->midChild ;
+					treeNode->rightChild->parent = treeNode ;
+					// treeNode initial
+					treeNode->midChild = NULL ;
+				}
+			
+			}
+			
+			treeNode->tempArray.pop_back();
+			treeNode->tempArray.pop_back(); // delete tempArray[1],[2]
+			
+			// End internal node is mid
+			
+		}
+		else if(treeNode->parent->rightChild == treeNode){
+			// internal node is right
+			TreeDataType *leftNode = new TreeDataType ;
+			leftNode->leftChild = NULL ;
+			leftNode->midChild = NULL ;
+			leftNode->rightChild = NULL ;
+			leftNode->parent = NULL ;
+			leftNode->tempLeft = NULL ;
+			leftNode->tempRight = NULL ;
+			
+			treeNode->id = treeNode->tempArray[2].id ;
+			strcpy(treeNode->schoolName, treeNode->tempArray[2].schoolName); //renew key
+			DataType treeNodeData = treeNode->tempArray.at(2);
+			
+			leftNode->id = treeNode->tempArray[0].id ;
+			strcpy(leftNode->schoolName, treeNode->tempArray[0].schoolName); //renew key
+			DataType leftNodeData = treeNode->tempArray.at(0);
+			leftNode->tempArray.push_back(leftNodeData);
+			
+			DataType parentNodeData = treeNode->tempArray.at(1);
+			treeNode->parent->tempArray.push_back(parentNodeData);
+			Sort(treeNode->parent);
+			
+			
+			// ***Start node conect***
+			
+			if( treeNode->parent->midChild == NULL ){
+				treeNode->parent->midChild = leftNode ;
+			}
+			else{
+				treeNode->parent->tempRight = leftNode ;	
+			}
+			
+			leftNode->parent = treeNode->parent ;		
+			// if treeNode has child
+		
+			//  has left child
+			if( treeNode->leftChild != NULL || treeNode->tempLeft != NULL|| treeNode->midChild != NULL ){
+				// conect to rightNode (new node)
+				leftNode->leftChild = treeNode->leftChild ;
+				leftNode->leftChild->parent = leftNode;
+				treeNode->leftChild = NULL ;
+				
+				if( treeNode->tempLeft != NULL ){
+					leftNode->rightChild = treeNode->tempLeft ;
+					leftNode->rightChild->parent = leftNode;
+					treeNode->tempLeft = NULL ; // treeNode initial
+				}
+				else{
+					leftNode->rightChild = treeNode->midChild ;
+					leftNode->rightChild->parent = leftNode;
+					treeNode->midChild = NULL ; // treeNode initial
+				}
+			
+			}
+		
+			// has right child
+			// ***Reuse*** treeNode consider to new left child
+			if( treeNode->rightChild != NULL || treeNode->tempRight != NULL|| treeNode->midChild != NULL){
+				// treeNode->rightChild = treeNode->rightChild  , keep original
+				if( treeNode->tempRight != NULL ){
+					treeNode->leftChild = treeNode->tempRight ;
+					treeNode->leftChild->parent = treeNode;
+					// treeNode initial
+					treeNode->tempRight = NULL ;
+				}
+				else{
+					treeNode->leftChild = treeNode->midChild ;
+					treeNode->leftChild->parent = treeNode;
+					// treeNode initial
+					treeNode->midChild = NULL ;
+				}
+			
+			}
+			
+			 
+			// delete tempArray[0],[1],[2]
+			treeNode->tempArray.clear();
+			// push tempArray[2]
+			treeNode->tempArray.push_back(treeNodeData);
+			// End internal node is right
+		}
+		else{
+			cout << "\nCase3 parent Error!!!!!!\n" << endl ;
+			system("pause");
+		}
+		
+		
+		
+
+		
+		
+		
+		// recursion
+		if( treeNode->parent->tempArray.size() == 3 ){
+			//Sort(treeNode->parent);
+			Split(treeNode->parent);
+		}
+		
+	}
+	
+	if( treeNode->tempArray.size() != 1 ){
+		cout << "Split treeNode size != 1 Error" << endl ;
+		system("pause");
+	}
+	
+	//cout << "End Split" << endl ;
+}
+
+TreeDataType * Two3Tree::getInserPosition(DataType data){
+	// Position always leaf
+	
+	//cout << " getInserPosition Test " << endl ;
+	if( hasRoot ){
+
+		
+		
+		TreeDataType *tempNode = root;
+		//int i = 0;
+		
+		while( tempNode != NULL ){
+			if( isLeaf(tempNode) ){
+
+				return tempNode ;
+			}
+			else{
+				
+
+				if( tempNode->tempArray.size() == 1 ){
+					if(strcmp(data.schoolName, tempNode->schoolName) < 0){
+						tempNode = tempNode->leftChild ;
+					}
+					else if( strcmp(data.schoolName, tempNode->schoolName) > 0){
+
+						tempNode = tempNode->rightChild ;
+					}
+					else if (strcmp(data.schoolName, tempNode->schoolName) == 0) {
+						return tempNode; // same school node
+					}
+
+
+					if( tempNode == NULL ){
+						cout << "\nNode is NULL Error!!!\n" << endl ;
+						system("pause");
+					}
+				}
+				else if(tempNode->tempArray.size() == 2){
+					// size == 2
+					if (strcmp(data.schoolName, tempNode->schoolName) == 0
+						|| strcmp(data.schoolName, tempNode->schoolName2) == 0) {
+						return tempNode; // same school node
+					}
+					else if(strcmp(data.schoolName, tempNode->schoolName) < 0){
+						tempNode = tempNode->leftChild ;
+					}
+					else if( strcmp(data.schoolName, tempNode->schoolName2) > 0){
+						tempNode = tempNode->rightChild ;
+					}
+					else if(strcmp(data.schoolName, tempNode->schoolName) > 0 
+					&& strcmp(data.schoolName, tempNode->schoolName2) < 0){
+
+						tempNode = tempNode->midChild;
+						
+						if( tempNode == NULL ){
+						cout << "\nNode is NULL Error!!!\n" << endl ;
+						system("pause");
+						}
+					}
+					
+					
+				}
+				else{
+					cout << "\nNode Size Error!!!\n" << endl ;
+					system("pause");
+				}
+
+				//cout << tempNode->schoolName << endl;
+				
+			}
+
+		}
+	}
+
+	cout << "\nCan't find correct leaf !\n" << endl ;
+	return NULL ;
+
+	
+}
+
+
+void Two3Tree::Insert(DataType data){
+	
+	if(!hasRoot){
+		root = new TreeDataType ;
+		// initial
+		root->parent = NULL ;
+		root->leftChild = NULL ;
+		root->midChild = NULL ;
+		root->rightChild = NULL ;
+		root->tempLeft = NULL ;
+		root->tempRight = NULL ;
+		
+		hasRoot = true;
+		root->id = data.id; 
+		strcpy(root->schoolName, data.schoolName); // key
+
+		root->tempArray.push_back(data);
+
+	}
+	else{
+		TreeDataType *insertNode = getInserPosition(data);
+
+		if( insertNode->tempArray.size() >= 3 ){
+			cout << " Error: insertNode, size >= 3 " << endl ;
+			return ;
+		}
+		
+		// same school name case
+		if( strcmp(insertNode->schoolName, data.schoolName) == 0 ){
+			insertNode->tempArray[0].dataArray.push_back(data) ;
+		}
+		else if( insertNode->tempArray.size() == 2 && strcmp(insertNode->schoolName2, data.schoolName) == 0 ){
+			insertNode->tempArray[1].dataArray.push_back(data) ;
+		}
+		else{
+			// Not same school name case
+			insertNode->tempArray.push_back(data) ;
+			
+			if( insertNode->tempArray.size() == 1 ){
+				if(insertNode->id !=  insertNode->tempArray[0].id){
+					cout << " Error: ID error" << endl ;
+					return ;
+				}		
+			}
+			
+			if(insertNode->tempArray.size() >= 2){
+				// do sorting
+				
+				Sort(insertNode);
+
+				if(insertNode->tempArray.size() == 3){
+					// need to split
+					Split(insertNode);
+				}
+				
+			}
+		}
+		
+	}
+	
+}
+
+void Two3Tree::Sort(TreeDataType *insertNode) {
+	// sort and renew node key
+	// sort
+	for(int i = 0 ; i < insertNode->tempArray.size() ; i++){
+		for(int j = i+1 ; j < insertNode->tempArray.size() ; j++ ){
+			if( strcmp(insertNode->tempArray[i].schoolName, insertNode->tempArray[j].schoolName) > 0 ){
+				Swap(i, j, insertNode->tempArray);
+			}
+		}
+	}
+	
+	// renew node key
+	if( insertNode->tempArray.size() == 2 ){
+		insertNode->id = insertNode->tempArray[0].id ;
+		strcpy(insertNode->schoolName, insertNode->tempArray[0].schoolName);
+		insertNode->id2 = insertNode->tempArray[1].id ;
+		strcpy(insertNode->schoolName2, insertNode->tempArray[1].schoolName);
+	}
+	
+
+	
+}
+
+void Two3Tree::Swap(int place, int place2, vector<struct DataType> &tempArray) {
+	vector<struct DataType>::iterator iter = tempArray.begin() + place;
+	vector<struct DataType>::iterator iter2 = tempArray.begin() + place2;
+	DataType place_data = tempArray.at(place);
+	DataType place_data2 = tempArray.at(place2);
+
+	tempArray.erase(iter);
+	tempArray.insert(iter, place_data2);
+	tempArray.erase(iter2);
+	tempArray.insert(iter2, place_data);
+}
+
+
+
+
+
+
+void Two3Tree::charInitial(char tempdata[]) {
+
+
+	for (int i = 0; i < sizeof(tempdata); i++) {
+		tempdata[i] = '\0';
+	}
+
+}
+
+
+
+void Two3Tree::readFile (fstream &file) {
+	
+	
+	char raw_temp[150] = "";
+	char raw_trash[150] = "";
+	char num[20] = "";
+	
+	DataType buffer;
+	for (int i = 0; i < 3; i++) {
+		file.getline(raw_trash, sizeof(raw_trash));
+	}
+
+	int rawNum = 1;
+
+	while (!file.eof())
+	{
+		charInitial(raw_temp);
+		file.getline(raw_temp, sizeof(raw_temp));
+		strcpy(buffer.raw_data, raw_temp);
+		char schoolName[80] = "";
+		char majorName[80]= "";
+		char dayType[30]= "";
+		char level[30]= "";
+		int t = 0;
+
+		for (int i = 0; i < sizeof(raw_temp) && raw_temp[i] != '\0'; i++) {
+
+			
+			if (t == 1) {
+				int j = 0;
+				while (raw_temp[i] != '\0' && raw_temp[i] != '\t')
+				{
+					schoolName[j] = raw_temp[i];
+					i++ ;
+					j++;
+				}
+				strcpy(buffer.schoolName, schoolName);
+				charInitial(schoolName);
+			}
+			else if (t == 3) {
+				int j = 0;
+				while (raw_temp[i] != '\0' && raw_temp[i] != '\t')
+				{
+					majorName[j] = raw_temp[i];
+					i++ ;
+					j++;
+				}
+				strcpy(buffer.majorName, majorName);
+				charInitial(majorName);
+			}
+			else if (t == 4) {
+				int j = 0;
+				while (raw_temp[i] != '\0' && raw_temp[i] != '\t')
+				{
+					dayType[j] = raw_temp[i];
+					i++ ;
+					j++;
+				}
+				strcpy(buffer.dayType, dayType);
+				charInitial(dayType);
+			}
+			else if (t == 5) {
+				int j = 0;
+				while (raw_temp[i] != '\0' && raw_temp[i] != '\t')
+				{
+					level[j] = raw_temp[i];
+					i++ ;
+					j++;
+				}
+				strcpy(buffer.level, level);
+				charInitial(level);
+			}
+			else if (t == 6) {
+				int j = 0;
+				while (raw_temp[i] != '\0' && raw_temp[i] != '\t')
+				{
+					if ( raw_temp[i] >= '0' && raw_temp[i] <='9' ){
+						num[j] = raw_temp[i];
+						i++;
+						j++;
+					}
+					else{
+						i++;
+					}
+					
+				}
+				buffer.numOfStudent = atoi(num);
+				charInitial(num);
+			}
+
+
+			if (raw_temp[i] == '\t') {
+				t++;
+			}
+		}
+
+		if (strcmp(buffer.raw_data, "") != 0) {
+			buffer.id = rawNum;
+			
+			//cout << "\n ********Data: " << buffer.schoolName <<"********\n"<< endl ;
+			Insert(buffer) ;
+
+			rawNum++;
+		}
+
+	}
+
+	file.close();
+}
+
+// ============================another class===============================
+
+struct AVLTreeType
+{
+	int id; 
+	char majorName[80]; // Key
+	vector<struct DataType> dataArray; // same majorName store area
+	
+	AVLTreeType *parent;
+	AVLTreeType *left;
+	AVLTreeType *right;
+	
+
+};
+
+class AVLTree{
+	
+public:
+	AVLTree();
+	~AVLTree();
+	void readFile (fstream &file);
+	void Insert(DataType data);
+//	void clear();
+	void charInitial(char tempdata[]);
+	
+	int getTreeHeight();
+	void Test();
+	void printRoot() ;
+	void clear() ;
+
+private:
+	AVLTreeType * getInserPosition(DataType data) ;
+	int BF(AVLTreeType * node);
+	int maxH(int h1, int h2) ;
+	int Height(AVLTreeType *node);
+	AVLTreeType * getErrorNode(AVLTreeType * node) ;
+	AVLTreeType * RRrotate(AVLTreeType * node); // 左璇 
+	AVLTreeType * LLrotate(AVLTreeType * node); // 右旋 
+	AVLTreeType * LRrotate(AVLTreeType * node); // 先左旋再右旋 
+	AVLTreeType * RLrotate(AVLTreeType * node); //  先右旋再左旋 
+	void inorder(AVLTreeType * node);
+	void delNode(AVLTreeType *node) ;
+
+	bool hasRoot ;
+	AVLTreeType * root ;
+};
+
+AVLTree::AVLTree(){
+	hasRoot = false;
+	//root = NULL ;
+}
+
+AVLTree::~AVLTree(){
+}
+
+
+void AVLTree::delNode(AVLTreeType *node){
+	if( node != NULL ){
+		delNode( node->left );
+		delNode( node->right );
+	}
+	
+	delete node ;
+}
+
+void AVLTree::clear(){
+	delNode(root) ;
+	
+	hasRoot = false ;
+	root = NULL ;
+}
+
+
+
+int AVLTree::getTreeHeight() {
+	return Height(root);
+}
+
+void AVLTree::printRoot() {
+	
+
+	if( root->dataArray.size() > 0 ){
+		int arraySize = root->dataArray.size() ;
+		int col = 1 ;
+		
+		for( int i = 0; i < arraySize ; i++ ){
+			cout << col<< ". "<<"["<< root->dataArray[i].id << "]" << root->dataArray[i].schoolName << "\t"
+			<< root->dataArray[i].majorName << "\t" << root->dataArray[i].dayType 
+			<< "\t" << root->dataArray[i].level << "\t" << root->dataArray[i].numOfStudent << endl ;
+			col++ ;
+		}
+	}
+	
+}
+
+void AVLTree::inorder(AVLTreeType * node) {
+	if (node != NULL) {
+		inorder(node->left);
+		cout << node->majorName << endl;
+		inorder(node->right);
+	}
+	
+}
+
+void AVLTree::Test() {
+	
+	inorder(root);
+	cout << "root: " << root->majorName<<endl;
+	
+}
+
+AVLTreeType * AVLTree::RLrotate(AVLTreeType * node) {
+	//cout << "RL" << endl;
+
+	AVLTreeType * nodePP = node->parent->parent;
+	AVLTreeType * nodeP = node->parent;
+	AVLTreeType * parent = node->left;
+	AVLTreeType * tempLeft = node->left->left;
+	AVLTreeType * tempRight = node->left->right;
+
+	if (nodePP != NULL) {
+		if (nodePP->left == node->parent) {
+			nodePP->left = parent;
+		}
+		else if (nodePP->right == node->parent) {
+			nodePP->right = parent;
+		}
+		else {
+			cout << "Error!!!" << endl;
+			if (nodePP->left != NULL)
+				cout << "nodePP->left->majorName: " << nodePP->left->majorName << endl;
+			if (nodePP->right != NULL)
+				cout << "nodePP->right->majorName: " << nodePP->right->majorName << endl;
+			cout << "nodePP->majorName: " << nodePP->majorName << endl;
+			cout << "node->parent->majorName: " << node->parent->majorName << endl;
+			system("pause");
+		}
+	}
+
+	parent->left = nodeP;
+	parent->right = node;
+	parent->parent = nodePP;
+	
+	node->parent = parent;
+	nodeP->parent = parent;
+
+	parent->left->right = tempLeft;
+	if (tempLeft != NULL) {
+		tempLeft->parent = parent->left;
+	}
+	parent->right->left = tempRight;
+	if (tempRight != NULL) {
+		tempRight->parent = parent->right;
+	}
+	
+
+	return parent;
+
+}
+
+AVLTreeType * AVLTree::LRrotate(AVLTreeType * node) {
+	//cout << "LR" << endl;
+	AVLTreeType * nodePP = node->parent->parent;
+	AVLTreeType * nodeP = node->parent;
+	AVLTreeType * parent = node->right;
+	AVLTreeType * tempLeft = node->right->left;
+	AVLTreeType * tempRight = node->right->right;
+	
+
+	if (nodePP != NULL) {
+		
+
+		if (nodePP->left == node->parent) {
+			nodePP->left = parent;
+		}
+		else if(nodePP->right == node->parent){
+			nodePP->right = parent;
+		}
+		else {
+			cout << "Error!!!" << endl;
+			if(nodePP->left != NULL)
+			cout << "nodePP->left->majorName: " << nodePP->left->majorName << endl;
+			if (nodePP->right != NULL)
+			cout << "nodePP->right->majorName: " << nodePP->right->majorName << endl;
+			cout << "nodePP->majorName: " << nodePP->majorName << endl;
+			cout << "node->parent->majorName: " << node->parent->majorName << endl;
+			system("pause");
+		}
+	}
+
+	
+	parent->left = node;
+	parent->right = nodeP;
+
+	parent->parent = nodePP;
+	node->parent = parent;
+	nodeP->parent = parent;
+
+	parent->left->right = tempLeft;
+	if (tempLeft != NULL) {
+		tempLeft->parent = parent->left;
+	}
+	
+	parent->right->left = tempRight;
+	if (tempRight != NULL) {
+		tempRight->parent = parent->right;
+	}
+	
+
+	return parent;
+
+
+}
+
+AVLTreeType * AVLTree::LLrotate(AVLTreeType * node) {
+
+	AVLTreeType * nodeRight = NULL;
+	AVLTreeType * parent = node;
+	AVLTreeType * nodePP = node->parent->parent;
+	AVLTreeType * nodeP = node->parent;
+
+	if (nodePP != NULL) {
+		if (nodePP->left == node->parent) {
+			nodePP->left = parent;
+		}
+		else if (nodePP->right == node->parent) {
+			nodePP->right = parent;
+		}
+		else {
+			cout << "Error!!!" << endl;
+			if (nodePP->left != NULL)
+				cout << "nodePP->left->majorName: " << nodePP->left->majorName << endl;
+			if (nodePP->right != NULL)
+				cout << "nodePP->right->majorName: " << nodePP->right->majorName << endl;
+			cout << "nodePP->majorName: " << nodePP->majorName << endl;
+			cout << "node->parent->majorName: " << node->parent->majorName << endl;
+			system("pause");
+		}
+	}
+
+	if (node->right != NULL) {
+		nodeRight = node->right;
+		nodeRight->parent = nodeP;
+	}
+
+	parent->right = nodeP;
+	parent->parent = nodePP;
+	nodeP->parent = parent;
+	nodeP->left = nodeRight;
+
+	return parent;
+}
+
+AVLTreeType * AVLTree::RRrotate(AVLTreeType * node) {
+
+	AVLTreeType * nodeLeft = NULL;
+	AVLTreeType * parent = node;
+	AVLTreeType * nodePP = node->parent->parent;
+	AVLTreeType * nodeP = node->parent;
+	
+	
+	
+
+
+	if (nodePP != NULL) {
+		if (nodePP->left == node->parent) {
+			nodePP->left = parent;
+		}
+		else if (nodePP->right == node->parent) {
+			nodePP->right = parent;
+		}
+		else {
+			cout << "Error!!!" << endl;
+			if (nodePP->left != NULL)
+				cout << "nodePP->left->majorName: " << nodePP->left->majorName << endl;
+			if (nodePP->right != NULL)
+				cout << "nodePP->right->majorName: " << nodePP->right->majorName << endl;
+			cout << "nodePP->majorName: " << nodePP->majorName << endl;
+			cout << "node->parent->majorName: " << node->parent->majorName << endl;
+			system("pause");
+		}
+	}
+	
+	
+	
+	
+	
+	if (node->left != NULL) {
+		nodeLeft = node->left;
+		nodeLeft->parent = nodeP;
+	}
+
+
+
+
+	parent->left = nodeP ;
+	parent->parent = nodePP;
+	nodeP->parent = parent;
+	nodeP->right = nodeLeft;
+	
+	return parent;
+}
+
+AVLTreeType * AVLTree::getErrorNode(AVLTreeType * node){
+	if( node != NULL ){
+		if(node->parent != NULL){
+			int bf;
+			bf = BF(node->parent->parent);
+			
+			if( bf == 2 || bf == -2 ){
+				return node->parent ;
+
+			}
+		}
+		
+		node = getErrorNode(node->parent) ;
+	}
+	
+	return node ;
+}
+
+int AVLTree::maxH(int h1, int h2){
+	if (h1 >= h2 )
+		return h1;
+	else
+		return h2;
+}
+
+int AVLTree::Height(AVLTreeType *node) {
+	if (node == NULL)
+		return 0;
+
+	return 1 + maxH(Height(node->left), Height(node->right));
+}
+
+int AVLTree::BF(AVLTreeType * node){
+	if( node == NULL )
+		return 0 ;
+	
+	return Height(node->left) - Height(node->right) ;
+}
+
+AVLTreeType * AVLTree::getInserPosition(DataType data){
+	if(hasRoot){
+		AVLTreeType * node = root ;
+		while( node != NULL){
+			if( strcmp( data.majorName, node->majorName ) == 0 ){
+				return node ;
+			}
+			else if( strcmp( data.majorName, node->majorName ) > 0 ){
+				
+				if( node->right != NULL ){
+					node = node->right ;
+					
+				}
+				else{
+					return node;
+				}
+			}
+			else if( strcmp( data.majorName, node->majorName ) < 0 ){
+				
+				if( node->left != NULL ){
+					node = node->left ;
+				}
+				else{
+					return node;
+				}
+			}
+		}
+	}
+}
+
+void AVLTree::Insert(DataType data){
+	if( !hasRoot ){
+		// build root
+		root = new AVLTreeType ;
+		root->parent = NULL ;
+		root->left = NULL ;
+		root->right = NULL ;
+		charInitial(root->majorName);
+		
+		root->id = data.id ;
+		strcpy(root->majorName, data.majorName);
+		hasRoot = true;
+		root->dataArray.push_back( data ) ;
+		
+	}
+	else{
+		// get insert node
+		// insert data
+		// exam parent BF
+		// rotate
+		
+		AVLTreeType * node = getInserPosition(data) ;
+
+
+		
+		if( strcmp( data.majorName, node->majorName ) == 0 ){
+
+			node->dataArray.push_back( data ) ;
+		}
+		else {
+			if (strcmp(data.majorName, node->majorName) > 0) {
+
+				node->right = new AVLTreeType;
+				node->right->parent = node;
+				node = node->right;
+				node->left = NULL;
+				node->right = NULL;
+				charInitial(node->majorName);
+				strcpy(node->majorName, data.majorName);
+				node->dataArray.push_back( data ) ;
+				// exam parent BF
+
+
+			}
+			else if (strcmp(data.majorName, node->majorName) < 0) {
+
+
+				node->left = new AVLTreeType;
+				node->left->parent = node;
+				node = node->left;
+				node->left = NULL;
+				node->right = NULL;
+				charInitial(node->majorName);
+				strcpy(node->majorName, data.majorName);
+				node->dataArray.push_back( data ) ;
+				
+
+			}
+
+			// exam error
+
+
+			AVLTreeType * errorNode = getErrorNode(node);
+
+			if (errorNode != NULL) {
+				int bf = BF(errorNode->parent);
+				int bf2 = BF(errorNode);
+				//cout << bf << endl;
+				//cout << bf2 << endl;
+				//system("pause");
+
+				if (bf*bf2 >= 0) {
+					// RR or LL 
+					if (bf2 > 0) {
+
+						if (errorNode->parent == root) {
+							root = LLrotate(errorNode);
+						}
+						else {
+							AVLTreeType * tempNode = LLrotate(errorNode);
+
+						}
+
+					}
+					else {
+
+						if (errorNode->parent == root) {
+							root = RRrotate(errorNode);
+						}
+						else {
+							AVLTreeType * tempNode = RRrotate(errorNode);
+
+
+						}
+					}
+
+				}
+				else {
+					//RL or LR
+					if (bf > 0) {
+						//LR
+						if (errorNode->parent == root) {
+							root = LRrotate(errorNode);
+						}
+						else {
+							AVLTreeType * tempNode = LRrotate(errorNode);
+						}
+
+					}
+					else {
+						//RL
+						if (errorNode->parent == root) {
+							root = RLrotate(errorNode);
+						}
+						else {
+							AVLTreeType * tempNode = RLrotate(errorNode);
+						}
+					}
+				}
+
+			}
+		}
+	}
+}
+
+void AVLTree::charInitial(char tempdata[]) {
+
+
+	for (int i = 0; i < sizeof(tempdata); i++) {
+		tempdata[i] = '\0';
+	}
+
+}
+
+void AVLTree::readFile (fstream &file) {
+	
+	
+	char raw_temp[150] = "";
+	char raw_trash[150] = "";
+	char num[20] = "";
+	
+	
+	
+	DataType buffer;
+	for (int i = 0; i < 3; i++) {
+		file.getline(raw_trash, sizeof(raw_trash));
+	}
+
+	int rawNum = 1;
+
+	while (!file.eof())
+	{
+		charInitial(raw_temp);
+		file.getline(raw_temp, sizeof(raw_temp));
+		strcpy(buffer.raw_data, raw_temp);
+		char schoolName[80] = "";
+		char majorName[80]= "";
+		char dayType[30]= "";
+		char level[30]= "";
+		int t = 0;
+
+		for (int i = 0; i < sizeof(raw_temp) && raw_temp[i] != '\0'; i++) {
+
+			
+			if (t == 1) {
+				int j = 0;
+				while (raw_temp[i] != '\0' && raw_temp[i] != '\t')
+				{
+					schoolName[j] = raw_temp[i];
+					i++ ;
+					j++;
+				}
+				strcpy(buffer.schoolName, schoolName);
+				charInitial(schoolName);
+			}
+			else if (t == 3) {
+				int j = 0;
+				while (raw_temp[i] != '\0' && raw_temp[i] != '\t')
+				{
+					majorName[j] = raw_temp[i];
+					i++ ;
+					j++;
+				}
+				strcpy(buffer.majorName, majorName);
+				charInitial(majorName);
+			}
+			else if (t == 4) {
+				int j = 0;
+				while (raw_temp[i] != '\0' && raw_temp[i] != '\t')
+				{
+					dayType[j] = raw_temp[i];
+					i++ ;
+					j++;
+				}
+				strcpy(buffer.dayType, dayType);
+				charInitial(dayType);
+			}
+			else if (t == 5) {
+				int j = 0;
+				while (raw_temp[i] != '\0' && raw_temp[i] != '\t')
+				{
+					level[j] = raw_temp[i];
+					i++ ;
+					j++;
+				}
+				strcpy(buffer.level, level);
+				charInitial(level);
+			}
+			else if (t == 6) {
+				int j = 0;
+				while (raw_temp[i] != '\0' && raw_temp[i] != '\t')
+				{
+					if ( raw_temp[i] >= '0' && raw_temp[i] <='9' ){
+						num[j] = raw_temp[i];
+						i++;
+						j++;
+					}
+					else{
+						i++;
+					}
+					
+				}
+				buffer.numOfStudent = atoi(num);
+				charInitial(num);
+			}
+
+
+			if (raw_temp[i] == '\t') {
+				t++;
+			}
+		}
+
+		if (strcmp(buffer.raw_data, "") != 0) {
+			buffer.id = rawNum;
+			
+			//cout << "\n ********Data: " << buffer.majorName <<"********\n"<< endl ;
+			Insert(buffer) ;
+
+			rawNum++;
+		}
+
+	}
+
+	file.close();
+}
+
+
+
+// ================================ Mission ================================
+
+
+void Mission1() {
+
+	fstream file;
+	char filename[200] = "";
+	char str_temp[50] = "";
+	char str_temp2[20] = "input";
+	char str_temp3[20] = ".txt";
+	cout << "\nInput a file number (e.g., 201, 202, 203, ...):";
+	cin >> str_temp;
+	if (strcmp(str_temp, "0") == 0) {
+		return;
+	}
+	strcat(filename, str_temp2);
+	strcat(filename, str_temp);
+	strcat(filename, str_temp3);
+	file.open(filename, ios::in);
+
+	if (file) {
+
+		Two3Tree ttTree ;
+		ttTree.readFile(file);
+		TreeDataType *root = ttTree.getRoot() ;
+		/*
+		if(root->tempArray.size() == 1){
+			cout << root->tempArray[0].schoolName << endl ;
+		}
+		else{
+			cout << root->tempArray[0].schoolName << endl ;
+			cout << root->tempArray[1].schoolName << endl ;
+		}
+		*/
+		
+		cout << "Tree Height: " << ttTree.getTreeHeight() << endl ;
+		ttTree.printRoot();
+		ttTree.clear() ;
+	}
+	else {
+		cout << "\n####Can't Find: " << filename << "####'" << endl;
+	}
+	
+	
+
+	return;
+}
+
+void Mission2() {
+	fstream file;
+	char filename[200] = "";
+	char str_temp[50] = "";
+	char str_temp2[20] = "input";
+	char str_temp3[20] = ".txt";
+	cout << "\nInput a file number (e.g., 201, 202, 203, ...):";
+	cin >> str_temp;
+	if (strcmp(str_temp, "0") == 0) {
+		return;
+	}
+	strcat(filename, str_temp2);
+	strcat(filename, str_temp);
+	strcat(filename, str_temp3);
+	file.open(filename, ios::in);
+
+	if (file) {
+
+		AVLTree avlTree;
+		avlTree.readFile(file);
+		//avlTree.Test();
+		cout << "Tree Height: " << avlTree.getTreeHeight() << endl ;
+		avlTree.printRoot();
+		avlTree.clear() ;
+
+	}
+	else {
+		cout << "\n####Can't Find: " << filename << "####'" << endl;
+	}
+	
+	
+
+	return;
+}
+
+
+
+
+
+
+int main() {
+
+	int command = 0;
+	//Two3Tree ttTree;
+	//AVLTree avlTree;
+	int i = 0;
+	do
+	{
+
+		cout << endl << "***              Tree              ***";
+		cout << endl << "* 0. Quit                            *";
+		cout << endl << "* 1. Build 2-3 Tree                  *";
+		cout << endl << "* 2. Build AVL Tree                  *";
+		//cout << endl << "* 3. Delete the max on one column    *";
+		cout << endl << "**************************************";
+		cout << endl << "Input a command(0, 1, 2): ";
+		cin >> command; // get a command
+		switch (command)
+		{
+		case 0: break;
+		case 1:
+			Mission1();
+
+			break;
+		case 2:
+			Mission2();
+
+			break;
+
+		default: cout << endl << "Command does not exist!" << endl;
+		} // end switch
+	} while (command != 0); // '0': stop the program
+	system("pause"); // pause the display
+	return 0;
+}
